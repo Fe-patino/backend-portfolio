@@ -3,6 +3,7 @@ package com.auth.ms_auth.security;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+
 import javax.crypto.SecretKey;
 
 
@@ -41,6 +44,38 @@ public class JwtService {
 
     }
 
+    public boolean esTokenValido(String token, UserDetails userDetails){
+        String email = extraerEmail(token);
+        return email.equals(userDetails.getUsername())&& !esTokenExpirado(token);
+    }
+
+    private boolean esTokenExpirado(String token){
+        return extraerExpiracion(token).before(new Date());
+
+    }
+
+    private Date extraerExpiracion(String token){
+        return extraerClaim(token,Claims::getExpiration);
+    }
+
+   private <T> T extraerClaim(String token,Function<Claims,T>resolver){
+        Claims claims = extraerTodosLosClaims(token);
+        return resolver.apply(claims);
+
+
+
+   }
    
+   private Claims extraerTodosLosClaims(String token){
+        return Jwts.parser()
+                   .verifyWith(getSecretKey())
+                   .build()
+                   .parseSignedClaims(token)
+                   .getPayload();
+    } 
+    
+    private SecretKey getSecretKey(){
+        return Keys.hmacShaKeyFor(secretKey.getBytes());
+    }
 
 }
